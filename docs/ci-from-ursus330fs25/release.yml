@@ -1,0 +1,175 @@
+name: Build and publish mod release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.release/release.json'
+      - '.release/notes.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Read release configuration
+        id: cfg
+        shell: bash
+        run: |
+          VERSION=$(python3 -c 'import json; print(json.load(open(".release/release.json"))["version"])')
+          TAG=$(python3 -c 'import json; print(json.load(open(".release/release.json"))["tag"])')
+          TITLE=$(python3 -c 'import json; print(json.load(open(".release/release.json"))["title"])')
+          PRERELEASE=$(python3 -c 'import json; print(str(json.load(open(".release/release.json"))["prerelease"]).lower())')
+          ZIP_NAME=$(python3 -c 'import json; print(json.load(open(".release/release.json"))["zipName"])')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "title=$TITLE" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
+          echo "zip_name=$ZIP_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Verify modDesc version
+        shell: bash
+        run: |
+          MOD_VERSION=$(python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          root = ET.parse('modDesc.xml').getroot()
+          print(root.findtext('version'))
+          PY
+          )
+          if [ "$MOD_VERSION" != "${{ steps.cfg.outputs.version }}" ]; then
+            echo "modDesc.xml version ($MOD_VERSION) does not match release version (${{ steps.cfg.outputs.version }})"
+            exit 1
+          fi
+
+      - name: Build Farming Simulator mod ZIP
+        shell: bash
+        run: |
+          rm -rf build
+          mkdir -p build/mod
+          rsync -a ./ build/mod/ \
+            --exclude='.git/' \
+            --exclude='.github/' \
+            --exclude='.release/' \
+            --exclude='debug/' \
+            --exclude='docs/' \
+            --exclude='README.md' \
+            --exclude='CHANGELOG.md' \
+            --exclude='build/'
+
+          # Policy: prereleases intentionally contain the integrated full diagnostic.
+          # Full releases automatically strip it from the final mod ZIP.
+          if [ "${{ steps.cfg.outputs.prerelease }}" = "false" ]; then
+            rm -f build/mod/Scripts/C330FullDiagnostic.lua
+          fi
+
+          cd build/mod
+          zip -r -9 "../${{ steps.cfg.outputs.zip_name }}" .
+
+      - name: Verify diagnostic policy and release ZIP cleanliness
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          import sys
+          import zipfile
+
+          zip_path = pathlib.Path('build/${{ steps.cfg.outputs.zip_name }}')
+          prerelease = '${{ steps.cfg.outputs.prerelease }}' == 'true'
+
+          always_bad_names = (
+              'TractorDebugKit.lua',
+              'TyreDebugKit.lua',
+              'QuickMassProbe.lua',
+              'TransmissionTrace.lua',
+              'DrivetrainProbe.lua',
+              'WheelSuspensionProbe.lua',
+          )
+          always_bad_markers = ('[TRACTORDBG]', '[TYREDBG]')
+          full_release_bad_names = ('C330FullDiagnostic.lua',)
+          full_release_bad_markers = ('[C330FULLDIAG]',)
+          text_ext = {'.lua', '.xml', '.txt', '.md'}
+          problems = []
+          found_integrated_diag = False
+
+          with zipfile.ZipFile(zip_path) as zf:
+              for name in zf.namelist():
+                  if name.endswith('Scripts/C330FullDiagnostic.lua'):
+                      found_integrated_diag = True
+
+                  if any(part in name for part in always_bad_names):
+                      problems.append(f'standardized temporary debug file present: {name}')
+                  if not prerelease and any(part in name for part in full_release_bad_names):
+                      problems.append(f'prerelease-only diagnostic present in full release: {name}')
+
+                  if pathlib.Path(name).suffix.lower() not in text_ext:
+                      continue
+                  text = zf.read(name).decode('utf-8', errors='replace')
+                  for marker in always_bad_markers:
+                      if marker in text:
+                          problems.append(f'standardized temporary marker {marker} present in {name}')
+                  if not prerelease:
+                      for marker in full_release_bad_markers:
+                          if marker in text:
+                              problems.append(f'prerelease-only marker {marker} present in full release: {name}')
+
+          if prerelease and not found_integrated_diag:
+              problems.append('prerelease is missing Scripts/C330FullDiagnostic.lua')
+
+          if problems:
+              print('RELEASE DIAGNOSTIC POLICY FAILED:')
+              for problem in sorted(set(problems)):
+                  print(' -', problem)
+              sys.exit(1)
+
+          if prerelease:
+              print('OK: prerelease contains integrated C330 full diagnostics')
+          else:
+              print('OK: full release contains no temporary C330 diagnostics')
+          PY
+
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          TAG='${{ steps.cfg.outputs.tag }}'
+          TITLE='${{ steps.cfg.outputs.title }}'
+          ZIP='build/${{ steps.cfg.outputs.zip_name }}'
+          PRE='${{ steps.cfg.outputs.prerelease }}'
+
+          # A release can be rebuilt/promoted under the same version. Keep the
+          # lightweight tag aligned with the exact commit used to build the ZIP,
+          # otherwise GitHub's "Source code" archives may point to an older test build.
+          git tag -f "$TAG" "$GITHUB_SHA"
+          git push origin "refs/tags/$TAG" --force
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$ZIP" --clobber
+            gh release edit "$TAG" --title "$TITLE" --notes-file .release/notes.md
+
+            # Explicitly set the boolean both ways. This is required when an
+            # existing prerelease is promoted to a normal release under the same tag.
+            RELEASE_ID=$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" --jq '.id')
+            gh api --method PATCH \
+              "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" \
+              -F prerelease="$PRE" >/dev/null
+
+            if [ "$PRE" = "false" ]; then
+              gh release edit "$TAG" --latest
+            fi
+          else
+            ARGS=("$TAG" "$ZIP" --title "$TITLE" --notes-file .release/notes.md --target "${GITHUB_SHA}")
+            if [ "$PRE" = "true" ]; then
+              ARGS+=(--prerelease)
+            else
+              ARGS+=(--latest)
+            fi
+            gh release create "${ARGS[@]}"
+          fi
