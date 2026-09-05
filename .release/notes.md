@@ -42,3 +42,12 @@ D2 flight-recorder diagnostics remain enabled in this prerelease. The `[C330FULL
 6. Send the complete `log.txt`.
 
 This remains a prerelease. The full-release workflow still removes `C330FullDiagnostic.lua`; the work-speed gearbox fix itself is permanent gameplay code and is not removed from full builds.
+
+### SP data collection (ursus330G — no MP this round)
+
+Use this prerelease ZIP **with** FullDiagnostic. Goal: gather runtime numbers the team still needs.
+
+1. **Mass / axles (@Bartek):** spawn C-330 and C-330M; log FL/FR/RL/RR (and total) dry, then with `design24` water, then with metal rear weights if available. Save `[C330FULLDIAG]` / wheel lines.
+2. **Gearbox (@Asia context, SP):** road sequence without implement; then Brony ~15 km/h and U021/1 ~8.4 km/h work limits — confirm work-gear ceiling / lug recovery breadcrumbs.
+3. **Do not** treat this session as MP validation — host+client stays parked until Emil asks.
+

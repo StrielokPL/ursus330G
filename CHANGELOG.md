@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.0.5.0 - work-speed gearbox governor (prerelease line)
+
+Gameplay prerelease line after the shop/physics milestones. Continues from clean D2 diagnostic results. **No** engine curve, torque, gearbox ratios, ballast mass or tyre calibration changes in this line — only automatic transmission work-speed safety after `C330TransmissionFix`.
+
+### Added
+- `Scripts/C330TransmissionWorkFix.lua` — work-speed / lug-downshift governor using active GIANTS implement speed limit.
+- Prerelease keeps integrated `C330FullDiagnostic` for log collection (`[C330FULLDIAG]`).
+
+### Unchanged physics (intentionally)
+- Liquid ballast **+132 kg**/rear wheel, filled spring/damper as in 0.0.4.x.
+- Dry tyres spring 12 / damper 22 / suspTravel 0.07.
+- Motor curve / torqueScale as calibrated for ~100 Nm / 30 KM.
+
+### Release notes
+- Detailed P1 behaviour and SP test order: see `.release/notes.md` (tag `0.0.5.0P1`).
+
 ## 0.0.4.3 - C-330 shop cleanup test
 
 Shop/configuration cleanup prerelease after the mass, dry-tyre and liquid-ballast physics milestones.
