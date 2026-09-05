@@ -181,7 +181,7 @@ local function getImplementsSummary(vehicle)
     return #parts > 0 and table.concat(parts, " | ") or "none"
 end
 
-local function getRearWheelSummary(vehicle)
+local function getWheelSummary(vehicle)
     local wheels = vehicle ~= nil
         and vehicle.spec_wheels ~= nil
         and vehicle.spec_wheels.wheels
@@ -191,7 +191,8 @@ local function getRearWheelSummary(vehicle)
     end
 
     local parts = {}
-    for _, index in ipairs({3, 4}) do
+    -- FL/FR/RL/RR — axle mass distribution for SP baseline logs
+    for _, index in ipairs({1, 2, 3, 4}) do
         local wheel = wheels[index]
         if wheel ~= nil then
             local physics = wheel.physics or {}
@@ -350,7 +351,7 @@ function C330FullDiagnostic:flushMotor(motor, now)
     if now - lastImpl >= IMPLEMENT_INTERVAL_MS then
         motor.c330FullDiagLastImplement = now
         Logging.info("%s[IMPLEMENTS] %s", PREFIX, getImplementsSummary(vehicle))
-        Logging.info("%s[REAR_WHEELS] %s", PREFIX, getRearWheelSummary(vehicle))
+        Logging.info("%s[REAR_WHEELS] %s", PREFIX, getWheelSummary(vehicle))
     end
 end
 
