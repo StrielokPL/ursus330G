@@ -6,7 +6,7 @@ Gameplay prerelease line after the shop/physics milestones. Continues from clean
 
 ### Added
 - `Scripts/C330TransmissionWorkFix.lua` — work-speed / lug-downshift governor using active GIANTS implement speed limit.
-- Prerelease keeps integrated `C330FullDiagnostic` for log collection (`[C330FULLDIAG]`).
+- Prerelease keeps integrated `C330FullDiagnostic` for log collection (`[C330FULLDIAG]`); wheel dump logs **W1–W4** (FL/FR/RL/RR) for SP axle baseline.
 
 ### Unchanged physics (intentionally)
 - Liquid ballast **+132 kg**/rear wheel, filled spring/damper as in 0.0.4.x.

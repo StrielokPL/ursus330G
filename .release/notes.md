@@ -30,7 +30,7 @@ The log also confirmed that `vehicle:getSpeedLimit(true)` correctly follows the 
 
 ### Diagnostics
 
-D2 flight-recorder diagnostics remain enabled in this prerelease. The `[C330FULLDIAG]` log still records transmission state, final prediction, speed limits, load/RPM, range/gear events, implements and wheel data. P1 also leaves controller breadcrumbs such as `WORK GEAR HOLD`, `WORK GEAR DOWN`, `WORK RANGE UP`, `LUG DOWNSHIFT`, `WORK RELEASE HOLD` and `BLOCK UPSHIFT HOLD` for the diagnostic state line.
+D2 flight-recorder diagnostics remain enabled in this prerelease. `[C330FULLDIAG][REAR_WHEELS]` now logs **W1–W4** (FL/FR/RL/RR) for SP axle mass baseline. The `[C330FULLDIAG]` log still records transmission state, final prediction, speed limits, load/RPM, range/gear events, implements and wheel data. P1 also leaves controller breadcrumbs such as `WORK GEAR HOLD`, `WORK GEAR DOWN`, `WORK RANGE UP`, `LUG DOWNSHIFT`, `WORK RELEASE HOLD` and `BLOCK UPSHIFT HOLD` for the diagnostic state line.
 
 ### Test order
 
